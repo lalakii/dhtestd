@@ -1,0 +1,11 @@
+[Unit]
+Description=DHCP Client
+Wants=network.target
+
+[Service]
+ExecStart=/usr/bin/dhtestd
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

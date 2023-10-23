@@ -1,0 +1,38 @@
+#!/bin/sh
+bindip2interface() {
+    wd=$1
+    eth=$2
+    while [ "$(find "$wd" -empty | wc -l)" != "0" ]; do
+        sleep 0.2
+    done
+    eval "$(cat "$wd"* | sed 's/: /="/g;s/$/"/;s/Pid/";Pid/')"
+    ip addr replace "${Acquired_ip:?}"/24 dev "$eth"
+    ip route replace default via "${Server_id:?}" dev "$eth"
+    resolv=/etc/resolv.conf
+    if [ -f $resolv ]; then
+        dnss=$(cat $resolv | grep nameserver | awk '{print $2}')
+        for item in $dnss; do
+            dns=$dns$item" "
+        done
+        dnsinfo="dns: $dns"
+    else
+        dnsinfo="try add dns 119.29.29.29"
+        echo "nameserver 119.29.29.29" >>$resolv
+    fi
+    cat <<EOF
+dhtest work directory: $wd
+set ip address: ${Acquired_ip:?}
+set gateway: ${Server_id:?}
+${dnsinfo}
+EOF
+}
+wd="/run/dhtest-01/"
+[ ! -d $wd ] && mkdir $wd
+cd $wd || exit
+eth_full=$(find /sys/class/net/e*)
+eth=$(basename "$eth_full")
+while [ "$(cat "$eth_full/operstate")" != "up" ]; do
+    ip link set "$eth" up || sleep 0.2
+done
+bindip2interface $wd "$eth" &
+exec dhtest -i "$eth" -b
