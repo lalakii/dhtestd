@@ -1,7 +1,8 @@
 #!/bin/sh
+[ "$(pidof dhtest)" != "" ] && echo "service already exists" && exit 0
+readonly wd="/run/dhtest-01/"
 bindip2interface() {
-    wd=$1
-    eth=$2
+    eth=$1
     while [ "$(find "$wd" -empty | wc -l)" != "0" ]; do
         sleep 0.2
     done
@@ -9,15 +10,11 @@ bindip2interface() {
     ip addr replace "${Acquired_ip:?}"/24 dev "$eth"
     ip route replace default via "${Server_id:?}" dev "$eth"
     resolv=/etc/resolv.conf
-    if [ -f $resolv ]; then
-        dnss=$(cat $resolv | grep nameserver | awk '{print $2}')
-        for item in $dnss; do
-            dns=$dns$item" "
-        done
-        dnsinfo="dns: $dns"
-    else
-        dnsinfo="try add dns 119.29.29.29"
+    if [ ! -f $resolv ]; then
         echo "nameserver 119.29.29.29" >>$resolv
+        dnsinfo="try add dns 119.29.29.29"
+    else
+        dnsinfo="dns: "$(cat $resolv | grep nameserver | awk '{printf $2" "}')
     fi
     cat <<EOF
 dhtest work directory: $wd
@@ -26,13 +23,12 @@ set gateway: ${Server_id:?}
 ${dnsinfo}
 EOF
 }
-wd="/run/dhtest-01/"
-[ ! -d $wd ] && mkdir $wd
+[ ! -d $wd ] && mkdir -p $wd
 cd $wd || exit
 eth_full=$(find /sys/class/net/e*)
 eth=$(basename "$eth_full")
 while [ "$(cat "$eth_full/operstate")" != "up" ]; do
     ip link set "$eth" up || sleep 0.2
 done
-bindip2interface $wd "$eth" &
+bindip2interface "$eth" &
 exec dhtest -i "$eth" -b
