@@ -25,7 +25,7 @@ EOF
 }
 [ ! -d $wd ] && mkdir -p $wd
 cd $wd || exit
-eth_full=$(find /sys/class/net/e*)
+eth_full=$(find /sys/class/net/e* | head -n1)
 eth=$(basename "$eth_full")
 while [ "$(cat "$eth_full/operstate")" != "up" ]; do
     ip link set "$eth" up || sleep 0.2
